@@ -1,0 +1,59 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: windows-latest  # ✅ Required for .NET Framework builds
+    steps:
+       # Step 1: Checkout repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Setup MSBuild (for .NET Framework)
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # Step 3: Setup NuGet (to restore packages)
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      # Step 4: Restore NuGet dependencies
+      - name: Restore dependencies
+        run: nuget restore LFW.sln  # 🔄 replace with your actual solution name
+
+      # Step 5: Build project using MSBuild
+      - name: Build Solution
+        run: msbuild LFW.sln /p:Configuration=Release
+
+      # Step 6: Upload build artifacts (optional)
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-files
+          path: '**/bin/Release/**'
+
+# Optional Deployment Job
+  deploy:
+    needs: build
+    runs-on: windows-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: published-files
+        path: ./publish
+
+    # Verify files
+    - name: Verify files
+      run: dir ./publish
+
+    # Example: Deploy to GitHub Pages
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.TOKEN }}
+        publish_dir: ./publish
